@@ -154,6 +154,29 @@
   #legend.editing .legendName:focus{outline:none; border-bottom-color:var(--gold);}
   #legendFoot{font-size:9.5px; color:var(--ink-dim); margin-top:6px; line-height:1.35;}
 
+  /* ---------- Course info popup ---------- */
+  #coursePop{
+    position:absolute; z-index:7; width:295px; max-height:345px; overflow-y:auto;
+    background:rgba(10,31,54,.97); border:1px solid var(--card-line);
+    border-radius:10px; padding:12px 14px; display:none;
+    backdrop-filter:blur(3px); box-shadow:0 8px 24px rgba(0,0,0,.45);
+  }
+  #coursePop.show{display:block;}
+  #popClose{position:absolute; top:6px; right:8px; background:none; border:none;
+    color:var(--ink-dim); font-size:13px; cursor:pointer; padding:2px 4px;}
+  #popClose:hover{color:var(--ink);}
+  #popCode{font-family:'Barlow Condensed'; font-size:17px; font-weight:700;
+    letter-spacing:.05em; text-transform:uppercase; color:var(--gold);
+    margin-right:20px; line-height:1.15;}
+  #popTitle{font-size:11.5px; font-weight:600; color:var(--ink); margin-top:1px;}
+  #popCredits{font-size:10px; font-weight:600; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--ink-dim); margin-top:4px;}
+  #popDesc{font-size:11.5px; line-height:1.5; color:var(--ink); margin-top:7px;
+    white-space:pre-line;}
+  #popReq{font-size:10px; line-height:1.45; color:var(--ink-dim); margin-top:7px;
+    border-top:1px dashed var(--ribbon-line); padding-top:6px;}
+  #popCredits:empty,#popDesc:empty,#popReq:empty{display:none;}
+
   #zoomHud{position:absolute; left:14px; bottom:14px; display:flex; gap:6px; z-index:5;}
   #hint{
     position:absolute; bottom:14px; right:14px; z-index:4;
@@ -248,6 +271,15 @@
     <div id="legendFoot">Names are editable when "Edit names" is on in the ribbon.</div>
   </div>
 
+  <div id="coursePop" role="dialog" aria-label="Course details">
+    <button id="popClose" aria-label="Close">✕</button>
+    <div id="popCode"></div>
+    <div id="popTitle"></div>
+    <div id="popCredits"></div>
+    <div id="popDesc"></div>
+    <div id="popReq"></div>
+  </div>
+
   <div id="zoomHud">
     <button class="btn" id="zoomOut" aria-label="Zoom out">−</button>
     <button class="btn" id="zoomIn" aria-label="Zoom in">+</button>
@@ -255,6 +287,7 @@
 
   <div id="hint">
     Click a class to light up everything required to reach it (click more to stack paths).
+    Right-click a class for its catalog description &amp; credits.
     Drag classes to rearrange · drag the background to pan · scroll to zoom.
     Selections, colors, names &amp; layout auto-save in this browser.
   </div>
@@ -394,6 +427,12 @@ const COLOR_HEX = {c1:'#ffb81c',c2:'#4fc3f7',c3:'#66bb6a',c4:'#ef5350',
  c5:'#ab47bc',c6:'#ff8a50',c7:'#26c6da',c8:'#f06292'};
 const DEFAULT_LEGEND = {default:'Uncategorized', c1:'Color 1', c2:'Color 2',
  c3:'Color 3', c4:'Color 4', c5:'Color 5', c6:'Color 6', c7:'Color 7', c8:'Color 8'};
+
+/* Catalog details for the right-click popup, keyed by course code.
+   Group/choice nodes are covered by per-major INFO overrides (keyed by node id). */
+//COURSE_INFO_START
+const COURSE_INFO = {};
+//COURSE_INFO_END
 
 /* ============ PERSISTENCE (localStorage) ============ */
 const STORE_KEY = 'pittPrereqTree.v1';
@@ -609,6 +648,7 @@ function fit(){
   applyView();
 }
 function zoomAt(cx,cy,factor){
+  hidePopup();
   const v=state.view;
   const nk=Math.min(3, Math.max(0.22, v.k*factor));
   const f=nk/v.k;
@@ -624,6 +664,8 @@ svg.addEventListener('wheel',e=>{
 /* pointer logic: node-drag vs node-click vs background-pan; 2-finger pinch */
 let pointers=new Map(), gesture=null;
 svg.addEventListener('pointerdown',e=>{
+  if(e.button!==0) return;   // right/middle click: no drag, no tap (see contextmenu)
+  hidePopup();
   svg.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pointers.size===2){
@@ -697,6 +739,52 @@ gNodes.addEventListener('keydown',e=>{
   if(g && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); handleNodeTap(g.dataset.id); }
 });
 
+/* ============ COURSE INFO POPUP (right-click) ============ */
+const stage=document.getElementById('stage');
+const pop=document.getElementById('coursePop');
+const popCode=document.getElementById('popCode');
+const popTitle=document.getElementById('popTitle');
+const popCredits=document.getElementById('popCredits');
+const popDesc=document.getElementById('popDesc');
+const popReq=document.getElementById('popReq');
+let popFor=null;
+
+function hidePopup(){ pop.classList.remove('show'); popFor=null; }
+function showPopup(id,cx,cy){
+  const n=nodes[id];
+  const M=MAJORS[state.major];
+  const info=(M.INFO && M.INFO[n.id]) || COURSE_INFO[n.code] || null;
+  popCode.textContent=n.code;
+  popTitle.textContent=(info && info.title) || n.name;
+  popCredits.textContent=(info && info.credits) || '';
+  popDesc.textContent=(info && info.description) ||
+    'No catalog details available for this item.';
+  popReq.textContent=(info && info.requirements) || '';
+  pop.classList.add('show');
+  const sr=stage.getBoundingClientRect();
+  let x=cx+14, y=cy+10;
+  if(x+pop.offsetWidth > sr.width-10) x=Math.max(10, cx-pop.offsetWidth-14);
+  if(y+pop.offsetHeight > sr.height-10) y=Math.max(10, sr.height-pop.offsetHeight-10);
+  pop.style.left=x+'px'; pop.style.top=y+'px';
+  popFor=id;
+}
+svg.addEventListener('contextmenu',e=>{
+  const g=e.target.closest('.node');
+  if(!g){ hidePopup(); return; }   // background keeps the browser's own menu
+  e.preventDefault();
+  const id=g.dataset.id;
+  if(popFor===id && pop.classList.contains('show')){ hidePopup(); return; }
+  const sr=stage.getBoundingClientRect();
+  let cx=e.clientX-sr.left, cy=e.clientY-sr.top;
+  if(!e.clientX && !e.clientY){   // keyboard-invoked context menu: anchor to the node
+    const n=nodes[id];
+    cx=state.view.x+n.x*state.view.k; cy=state.view.y+n.y*state.view.k;
+  }
+  showPopup(id,cx,cy);
+});
+document.getElementById('popClose').addEventListener('click',hidePopup);
+window.addEventListener('keydown',e=>{ if(e.key==='Escape') hidePopup(); });
+
 /* ============ RIBBON ============ */
 // major dropdown
 const majorSel=document.getElementById('majorSel');
@@ -708,6 +796,7 @@ function switchMajor(mk){
   state.selected=ms.selected; state.colors=ms.colors;
   state.legendNames=ms.legendNames; state.pos=ms.pos;
   state.paintArmed=null;
+  hidePopup();
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('armed'));
   document.getElementById('paintHint').textContent=
     'Pick a chip, then click classes to paint. Pick it again to stop.';
