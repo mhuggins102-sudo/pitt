@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pitt Civil Engineering — Prerequisite Tree</title>
+<title>Pitt Prerequisite Trees</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -38,6 +38,12 @@
     letter-spacing:.06em; text-transform:uppercase; color:var(--gold); white-space:nowrap;}
   #appTitle small{display:block; font-family:'IBM Plex Sans'; font-weight:400;
     font-size:10px; letter-spacing:.02em; text-transform:none; color:var(--ink-dim);}
+  #majorSel{
+    background:#0f2c4a; border:1px solid var(--ribbon-line); border-radius:6px;
+    color:var(--ink); font-size:12px; font-weight:600; padding:5px 8px;
+    font-family:inherit; cursor:pointer;
+  }
+  #majorSel:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
   #tabs{display:flex; gap:6px; flex-wrap:wrap;}
   .tab{
     font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
@@ -163,9 +169,13 @@
 
 <div id="ribbon">
   <div id="ribbonTop">
-    <div id="appTitle">Civil Engineering · Prereq Tree
-      <small>University of Pittsburgh — Swanson School of Engineering</small>
+    <div id="appTitle"><span id="titleMajor">Civil Engineering</span> · Prereq Tree
+      <small id="titleSchool">University of Pittsburgh — Swanson School of Engineering</small>
     </div>
+    <select id="majorSel" aria-label="Choose major">
+      <option value="civil">Civil Engineering</option>
+      <option value="neuro">Neuroscience</option>
+    </select>
     <div id="tabs" role="group" aria-label="Ribbon section visibility">
       <button class="tab on" data-panel="pSearch">Search</button>
       <button class="tab on" data-panel="pColors">Colors</button>
@@ -246,98 +256,199 @@
   <div id="hint">
     Click a class to light up everything required to reach it (click more to stack paths).
     Drag classes to rearrange · drag the background to pan · scroll to zoom.
+    Selections, colors, names &amp; layout auto-save in this browser.
   </div>
 </div>
 
 <script>
 'use strict';
-/* ============ DATA — Pitt BSE Civil Engineering ============ */
-const NW = 158, NH = 64, ROW_H = 155, PADX = 40;
+const NW = 158, NH = 64, ROW_H = 155;
 
-const NODES = [
- // term, id, code, name, x
- [1,'m220','MATH 0220','Analytic Geometry & Calculus 1',180],
- [1,'c960','CHEM 0960','Gen. Chemistry for Engineering 1',560],
- [1,'p174','PHYS 0174','Basic Physics for Science & Engineering 1',900],
- [1,'e011','ENGR 0011','Introduction to Engineering Analysis 1',1250],
+/* ============ DATA — one entry per major ============ */
+/* NODES: [term, id, code, name, x] · EDGES: [prereqId, courseId, optional 'coreq'] */
+const MAJORS = {
 
- [2,'m230','MATH 0230','Analytic Geometry & Calculus 2',180],
- [2,'c970','CHEM 0970','Gen. Chemistry for Engineering 2',560],
- [2,'p175','PHYS 0175','Basic Physics for Science & Engineering 2',900],
- [2,'e012','ENGR 0012','Introduction to Engineering Analysis 2',1250],
+civil: {
+  title:'Civil Engineering',
+  school:'University of Pittsburgh — Swanson School of Engineering',
+  terms:{1:'Term 1 · Fall (First Year)',2:'Term 2 · Spring (First Year)',
+    3:'Term 3',4:'Term 4',5:'Term 5',6:'Term 6',7:'Term 7',8:'Term 8'},
+  NODES:[
+   [1,'m220','MATH 0220','Analytic Geometry & Calculus 1',180],
+   [1,'c960','CHEM 0960','Gen. Chemistry for Engineering 1',560],
+   [1,'p174','PHYS 0174','Basic Physics for Science & Engineering 1',900],
+   [1,'e011','ENGR 0011','Introduction to Engineering Analysis 1',1250],
 
- [3,'m240','MATH 0240','Analytic Geometry and Calculus 3',110],
- [3,'e020','ENGR 0020','Probability and Statistics for Engineers',330],
- [3,'e131','ENGR 0131','Statics for Civil & Envrl Engnr',700],
- [3,'ie1040','IE 1040','Engineering Economic Analysis',1030],
- [3,'c1503','CEE 1503','Intro to Environmental Engrng',1330],
+   [2,'m230','MATH 0230','Analytic Geometry & Calculus 2',180],
+   [2,'c970','CHEM 0970','Gen. Chemistry for Engineering 2',560],
+   [2,'p175','PHYS 0175','Basic Physics for Science & Engineering 2',900],
+   [2,'e012','ENGR 0012','Introduction to Engineering Analysis 2',1250],
 
- [4,'m290','MATH 0290','Differential Equations',60],
- [4,'c0109','CEE 0109','Computer Meth in Civil Engrg 1',360],
- [4,'e141','ENGR 0141','Mechc of Matls Cvl & Env Engr',680],
- [4,'c1105','CEE 1105','Materials of Construction',960],
- [4,'econ','ECON 0100','Introduction to Microeconomic Theory',1230],
+   [3,'m240','MATH 0240','Analytic Geometry and Calculus 3',110],
+   [3,'e020','ENGR 0020','Probability and Statistics for Engineers',330],
+   [3,'e131','ENGR 0131','Statics for Civil & Envrl Engnr',700],
+   [3,'ie1040','IE 1040','Engineering Economic Analysis',1030],
+   [3,'c1503','CEE 1503','Intro to Environmental Engrng',1330],
 
- [5,'c1330','CEE 1330','Introduction to Structural Analysis',260],
- [5,'c1402','CEE 1402','Fluid Mechanics',560],
- [5,'c1811','CEE 1811','Principles of Soil Mechanics',860],
- [5,'e151','ENGR 0151','Dynamics Civil & Envrn Engnrs',1130],
+   [4,'m290','MATH 0290','Differential Equations',60],
+   [4,'c0109','CEE 0109','Computer Meth in Civil Engrg 1',360],
+   [4,'e141','ENGR 0141','Mechc of Matls Cvl & Env Engr',680],
+   [4,'c1105','CEE 1105','Materials of Construction',960],
+   [4,'econ','ECON 0100','Introduction to Microeconomic Theory',1230],
 
- [6,'c1703','CEE 1703','Transportation Engineering',260],
- [6,'c1412','CEE 1412','Introduction to Hydrology',560],
- [6,'c1200','CEE 1200','Construction Management',1130],
- [6,'sust','CEE 1609 / 1610 / 1618','Sustainability requirement (choose one)',1400],
+   [5,'c1330','CEE 1330','Introduction to Structural Analysis',260],
+   [5,'c1402','CEE 1402','Fluid Mechanics',560],
+   [5,'c1811','CEE 1811','Principles of Soil Mechanics',860],
+   [5,'e151','ENGR 0151','Dynamics Civil & Envrn Engnrs',1130],
 
- [7,'deStr','CEE Design Elective','Structures group: CEE 1340 or 1341',200],
- [7,'deWat','CEE Design Elective','Water group: CEE 1410 or 1401',530],
- [7,'deTg','CEE Design Elective','Transp/Geotech group: CEE 1714–1718, 1821, 2814',860],
- [7,'deEnv','CEE Design Elective','Environmental group: CEE 1505, 1513, or 1515',1230],
- [7,'engrEl','Engineering Elective','3 Credits',1500],
+   [6,'c1703','CEE 1703','Transportation Engineering',260],
+   [6,'c1412','CEE 1412','Introduction to Hydrology',560],
+   [6,'c1200','CEE 1200','Construction Management',1130],
+   [6,'sust','CEE 1609 / 1610 / 1618','Sustainability requirement (choose one)',1400],
 
- [8,'proj','Design Project','CEE 1233/1333/1433/1533/1733/1833 (choose one)',700],
- [8,'ceeEl','CEE Elective','3 courses · 9 Credits',1230],
-];
+   [7,'deStr','CEE Design Elective','Structures group: CEE 1340 or 1341',200],
+   [7,'deWat','CEE Design Elective','Water group: CEE 1410 or 1401',530],
+   [7,'deTg','CEE Design Elective','Transp/Geotech group: CEE 1714–1718, 1821, 2814',860],
+   [7,'deEnv','CEE Design Elective','Environmental group: CEE 1505, 1513, or 1515',1230],
+   [7,'engrEl','Engineering Elective','3 Credits',1500],
 
-const EDGES = [
- ['m220','m230'],['m230','m240'],['m230','m290'],['m230','e020'],
- ['m230','e131'],['p174','e131'],['p174','p175'],['c960','c970'],
- ['c970','c1503'],['e011','e012'],['e012','e131'],['e012','c0109'],
- ['m240','c0109'],['m220','ie1040'],
- ['e131','e141'],['e131','e151'],
- ['e141','c1105','coreq'],
- ['e141','c1330'],['m290','c1330'],
- ['e141','c1402'],['e141','c1811'],
- ['c1330','c1703'],['c1402','c1412'],['c1503','sust'],
- ['c1330','deStr'],['c1402','deWat'],['c1503','deEnv'],
- ['c1703','deTg'],['c1811','deTg'],
- ['deStr','proj'],['deWat','proj'],['deEnv','proj'],['deTg','proj'],
-];
+   [8,'proj','Design Project','CEE 1233/1333/1433/1533/1733/1833 (choose one)',700],
+   [8,'ceeEl','CEE Elective','3 courses · 9 Credits',1230],
+  ],
+  EDGES:[
+   ['m220','m230'],['m230','m240'],['m230','m290'],['m230','e020'],
+   ['m230','e131'],['p174','e131'],['p174','p175'],['c960','c970'],
+   ['c970','c1503'],['e011','e012'],['e012','e131'],['e012','c0109'],
+   ['m240','c0109'],['m220','ie1040'],
+   ['e131','e141'],['e131','e151'],
+   ['e141','c1105','coreq'],
+   ['e141','c1330'],['m290','c1330'],
+   ['e141','c1402'],['e141','c1811'],
+   ['c1330','c1703'],['c1402','c1412'],['c1503','sust'],
+   ['c1330','deStr'],['c1402','deWat'],['c1503','deEnv'],
+   ['c1703','deTg'],['c1811','deTg'],
+   ['deStr','proj'],['deWat','proj'],['deEnv','proj'],['deTg','proj'],
+  ],
+},
 
-const TERM_NAMES = {1:'Term 1 · Fall (First Year)',2:'Term 2 · Spring (First Year)',
- 3:'Term 3',4:'Term 4',5:'Term 5',6:'Term 6',7:'Term 7',8:'Term 8'};
+neuro: {
+  title:'Neuroscience',
+  school:'University of Pittsburgh — Dietrich School of Arts & Sciences',
+  terms:{1:'Term 1 · Fall Freshman',2:'Term 2 · Spring Freshman',
+    3:'Term 3 · Fall Sophomore',4:'Term 4 · Spring Sophomore',
+    5:'Term 5 · Fall Junior',6:'Term 6 · Spring Junior',
+    7:'Term 7 · Fall Senior',8:'Term 8 · Spring Senior'},
+  NODES:[
+   [1,'b150','BIOSC 0150','Foundations of Biology 1',420],
+   [1,'ch110','CHEM 0110','General Chemistry 1',860],
+
+   [2,'b050','BIOSC 0050','Foundations of Biology Lab 1 (or 0057 / 0058)',140],
+   [2,'b160','BIOSC 0160','Foundations of Biology 2',420],
+   [2,'ch120','CHEM 0120','General Chemistry 2',860],
+   [2,'m220','MATH 0220','Analytic Geometry & Calculus 1',1280],
+
+   [3,'b060','BIOSC 0060','Foundations of Biology Lab 2 (or 0067 / 0068)',140],
+   [3,'n1000','NROSCI 1000','Introduction to Neuroscience (B- or better)',600],
+   [3,'ch310','CHEM 0310','Organic Chemistry 1',940],
+
+   [4,'n1017','NROSCI 1017','Synaptic Transmission',420],
+   [4,'ch320','CHEM 0320','Organic Chemistry 2',860],
+   [4,'ch345','CHEM 0345','Organic Chemistry Lab',1140],
+
+   [5,'n1049','NROSCI 1049','Research Topics in Neuroscience',200],
+   [5,'n1250','NROSCI 1250','Human Physiology (or BIOSC 1250)',600],
+   [5,'ph110','PHYS 0110','Introduction to Physics 1 (or PHYS 0174)',1280],
+
+   [6,'b1000','BIOSC 1000','Biochemistry',800],
+   [6,'ph111','PHYS 0111','Introduction to Physics 2 (or PHYS 0175)',1280],
+
+   [7,'adv1','NROSCI Elective 1','Advanced: choose from 1014–1200 list',250],
+   [7,'n1012','NROSCI 1012','Neurophysiology',1050],
+
+   [8,'n1011','NROSCI 1011','Functional Neuroanatomy',300],
+   [8,'adv2','NROSCI Elective 2','Advanced: choose from 1014–1200 list',640],
+   [8,'writ','Writing Course','NROSCI 1800 / 1801 / 1962 (choose one)',980],
+   [8,'cap','Capstone','NROSCI 1027 / 1901 / 1962 / NS research',1320],
+  ],
+  EDGES:[
+   ['b150','b160'],['b150','b050'],['b160','b060'],
+   ['ch110','ch120'],['ch120','ch310'],['ch310','ch320'],
+   ['ch310','ch345'],['ch320','ch345','coreq'],
+   ['b160','n1000'],['ch120','n1000'],
+   ['n1000','n1017'],['n1000','n1049'],
+   ['b160','n1250'],['ch120','n1250'],
+   ['b160','b1000'],['ch310','b1000'],
+   ['ph110','ph111'],
+   ['n1000','n1012'],['ph111','n1012'],['m220','n1012'],
+   ['n1000','n1011'],
+   ['n1000','adv1'],['n1000','adv2'],
+   ['n1000','writ'],['n1000','cap'],
+   ['adv2','writ','coreq'],
+  ],
+},
+
+};
 
 const COLOR_KEYS = ['c1','c2','c3','c4','c5','c6','c7','c8'];
 const COLOR_HEX = {c1:'#ffb81c',c2:'#4fc3f7',c3:'#66bb6a',c4:'#ef5350',
  c5:'#ab47bc',c6:'#ff8a50',c7:'#26c6da',c8:'#f06292'};
+const DEFAULT_LEGEND = {default:'Uncategorized', c1:'Color 1', c2:'Color 2',
+ c3:'Color 3', c4:'Color 4', c5:'Color 5', c6:'Color 6', c7:'Color 7', c8:'Color 8'};
+
+/* ============ PERSISTENCE (localStorage) ============ */
+const STORE_KEY = 'pittPrereqTree.v1';
+function loadStore(){
+  try{
+    const s = JSON.parse(localStorage.getItem(STORE_KEY));
+    if(s && typeof s==='object' && s.majors) return s;
+  }catch(e){}
+  return {activeMajor:'civil', majors:{}};
+}
+const store = loadStore();
+
+let saveTimer = null;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    const pos = {};
+    Object.values(nodes).forEach(n=>{
+      if(n.x!==n.x0 || n.y!==n.y0) pos[n.id] = {x:n.x, y:n.y};
+    });
+    store.activeMajor = state.major;
+    store.majors[state.major] = {
+      selected:[...state.selected],
+      colors:{...state.colors},
+      legendNames:{...state.legendNames},
+      pos,
+    };
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){}
+  },200);
+}
+
+function majorState(mk){
+  const d = store.majors[mk] || {};
+  return {
+    selected:new Set(d.selected||[]),
+    colors:Object.assign({}, d.colors||{}),
+    legendNames:Object.assign({}, DEFAULT_LEGEND, d.legendNames||{}),
+    pos:d.pos||{},
+  };
+}
 
 /* ============ STATE ============ */
-const nodes = {};
-NODES.forEach(([term,id,code,name,x])=>{
-  nodes[id] = {id,term,code,name, x, y:(term-1)*ROW_H+60, x0:x, y0:(term-1)*ROW_H+60};
-});
-const parentsOf = {};
-EDGES.forEach(([a,b])=>{ (parentsOf[b]=parentsOf[b]||[]).push(a); });
-
 const state = {
+  major:(MAJORS[store.activeMajor] ? store.activeMajor : 'civil'),
   selected:new Set(),
   paintArmed:null,          // 'c1'..'c8' | 'default' | null
   colors:{},                // id -> colorKey
-  legendNames:{default:'Uncategorized', c1:'Color 1', c2:'Color 2', c3:'Color 3',
-    c4:'Color 4', c5:'Color 5', c6:'Color 6', c7:'Color 7', c8:'Color 8'},
+  legendNames:Object.assign({}, DEFAULT_LEGEND),
+  pos:{},
   search:'', searchWithPrereqs:true,
   legendOn:false, legendEdit:false,
   view:{x:0,y:0,k:1},
 };
+
+let nodes = {}, parentsOf = {}, edgeEls = [], nodeEls = {};
 
 function ancestors(id, acc){
   (parentsOf[id]||[]).forEach(p=>{
@@ -391,36 +502,52 @@ function wrapName(text, maxChars=28){
   return lines;
 }
 
-// row labels
-for(let t=1;t<=8;t++){
-  el('text',{x:-150, y:(t-1)*ROW_H+60+NH/2+4, class:'rowLabel'},gRows)
-    .textContent = TERM_NAMES[t];
-}
+/* rebuild the whole tree from the active major's data + saved positions */
+function buildTree(){
+  const M = MAJORS[state.major];
+  nodes = {}; parentsOf = {}; edgeEls = []; nodeEls = {};
+  gRows.textContent=''; gEdges.textContent='';
+  gEdgeLabels.textContent=''; gNodes.textContent='';
 
-// edges
-const edgeEls = EDGES.map(([a,b,kind])=>{
-  const p = el('path',{class:'edge'+(kind==='coreq'?' coreq':''),
-    'marker-end':'url(#arr)'},gEdges);
-  let label=null;
-  if(kind==='coreq'){ label = el('text',{class:'edgeLabel','text-anchor':'middle'},gEdgeLabels);
-    label.textContent='CO-REQ'; }
-  return {a,b,kind,p,label};
-});
-
-// nodes
-const nodeEls = {};
-Object.values(nodes).forEach(n=>{
-  const g = el('g',{class:'node','data-id':n.id, tabindex:0, role:'button',
-    'aria-label':n.code+', '+n.name},gNodes);
-  el('rect',{class:'body', x:-NW/2, y:-NH/2, width:NW, height:NH, rx:9},g);
-  el('rect',{class:'tint', x:-NW/2+2, y:-NH/2+2, width:NW-4, height:6, rx:3,
-    fill:'transparent'},g);
-  const code = el('text',{class:'code', y:-6},g); code.textContent=n.code;
-  wrapName(n.name).forEach((line,i)=>{
-    const t = el('text',{class:'cname', y:8+i*11},g); t.textContent=line;
+  M.NODES.forEach(([term,id,code,name,x])=>{
+    const y0=(term-1)*ROW_H+60;
+    const p = state.pos[id];
+    nodes[id] = {id,term,code,name,
+      x:(p&&isFinite(p.x))?p.x:x, y:(p&&isFinite(p.y))?p.y:y0, x0:x, y0};
   });
-  nodeEls[n.id]=g;
-});
+  M.EDGES.forEach(([a,b])=>{ (parentsOf[b]=parentsOf[b]||[]).push(a); });
+
+  Object.keys(M.terms).forEach(t=>{
+    el('text',{x:-150, y:(t-1)*ROW_H+60+NH/2+4, class:'rowLabel'},gRows)
+      .textContent = M.terms[t];
+  });
+
+  M.EDGES.forEach(([a,b,kind])=>{
+    const p = el('path',{class:'edge'+(kind==='coreq'?' coreq':''),
+      'marker-end':'url(#arr)'},gEdges);
+    let label=null;
+    if(kind==='coreq'){ label = el('text',{class:'edgeLabel','text-anchor':'middle'},gEdgeLabels);
+      label.textContent='CO-REQ'; }
+    edgeEls.push({a,b,kind,p,label});
+  });
+
+  Object.values(nodes).forEach(n=>{
+    const g = el('g',{class:'node','data-id':n.id, tabindex:0, role:'button',
+      'aria-label':n.code+', '+n.name},gNodes);
+    el('rect',{class:'body', x:-NW/2, y:-NH/2, width:NW, height:NH, rx:9},g);
+    el('rect',{class:'tint', x:-NW/2+2, y:-NH/2+2, width:NW-4, height:6, rx:3,
+      fill:'transparent'},g);
+    const code = el('text',{class:'code', y:-6},g); code.textContent=n.code;
+    wrapName(n.name).forEach((line,i)=>{
+      const t = el('text',{class:'cname', y:8+i*11},g); t.textContent=line;
+    });
+    nodeEls[n.id]=g;
+  });
+
+  document.getElementById('titleMajor').textContent = M.title;
+  document.getElementById('titleSchool').textContent = M.school;
+  document.title = M.title + ' — Pitt Prerequisite Tree';
+}
 
 /* ============ RENDER ============ */
 function edgePath(a,b){
@@ -462,6 +589,7 @@ function render(){
       e.label.classList.toggle('hl',lit); e.label.classList.toggle('dim',dim);
     }
   });
+  save();
 }
 function applyView(){
   const {x,y,k}=state.view;
@@ -570,6 +698,24 @@ gNodes.addEventListener('keydown',e=>{
 });
 
 /* ============ RIBBON ============ */
+// major dropdown
+const majorSel=document.getElementById('majorSel');
+majorSel.addEventListener('change',()=>switchMajor(majorSel.value));
+function switchMajor(mk){
+  if(!MAJORS[mk]) return;
+  state.major=mk;
+  const ms=majorState(mk);
+  state.selected=ms.selected; state.colors=ms.colors;
+  state.legendNames=ms.legendNames; state.pos=ms.pos;
+  state.paintArmed=null;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('armed'));
+  document.getElementById('paintHint').textContent=
+    'Pick a chip, then click classes to paint. Pick it again to stop.';
+  searchInput.value=''; state.search=''; searchClear.style.display='none';
+  refreshLegendUI();
+  buildTree(); render(); fit();
+}
+
 // section visibility tabs
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click',()=>{
@@ -629,6 +775,7 @@ COLOR_KEYS.forEach(k=>chipEls[k]=makeChip(k));
 // legend
 const legend=document.getElementById('legend');
 const legendRows=document.getElementById('legendRows');
+const legendInputs={};
 ['default',...COLOR_KEYS].forEach(k=>{
   const row=document.createElement('div'); row.className='legendRow';
   const sw=document.createElement('span');
@@ -640,9 +787,17 @@ const legendRows=document.getElementById('legendRows');
   inp.addEventListener('input',()=>{
     state.legendNames[k]=inp.value||' ';
     chipEls[k].title = k==='default' ? 'Reset to default' : state.legendNames[k];
+    save();
   });
   row.append(sw,inp); legendRows.appendChild(row);
+  legendInputs[k]=inp;
 });
+function refreshLegendUI(){
+  ['default',...COLOR_KEYS].forEach(k=>{
+    legendInputs[k].value=state.legendNames[k];
+    chipEls[k].title = k==='default' ? 'Reset to default' : state.legendNames[k];
+  });
+}
 const toggleLegendBtn=document.getElementById('toggleLegend');
 toggleLegendBtn.addEventListener('click',()=>{
   state.legendOn=!state.legendOn;
@@ -666,6 +821,7 @@ document.getElementById('resetSel').addEventListener('click',()=>{
 document.getElementById('fitBtn').addEventListener('click',fit);
 document.getElementById('resetLayout').addEventListener('click',()=>{
   Object.values(nodes).forEach(n=>{n.x=n.x0; n.y=n.y0;});
+  state.pos={};
   render(); fit();
 });
 document.getElementById('zoomIn').addEventListener('click',()=>{
@@ -676,7 +832,10 @@ document.getElementById('zoomOut').addEventListener('click',()=>{
 });
 
 window.addEventListener('resize',fit);
-render(); fit();
+
+/* ============ INIT ============ */
+majorSel.value=state.major;
+switchMajor(state.major);
 </script>
 </body>
 </html>
