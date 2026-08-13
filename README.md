@@ -20,6 +20,9 @@ No build step, no dependencies beyond two Google Fonts loaded via CDN.
   Fit tree and Reset layout buttons.
 - Co-requisites rendered as dashed CO-REQ edges (e.g. ENGR 0141 ↔ CEE 1105,
   CHEM 0320 ↔ CHEM 0345).
+- **Right-click any course** for a popup card with its official catalog
+  title, credit hours, description, and requisites (close with Escape, the
+  ✕, or by clicking elsewhere).
 - **Auto-save**: selections, painted colors, legend names, dragged node
   positions, and the last-viewed major persist across page reloads via
   `localStorage` (key `pittPrereqTree.v1`), kept separately per major.
@@ -41,6 +44,15 @@ of `index.html`. Each major has:
 Prerequisite highlighting is computed from `EDGES` automatically — nothing
 else needs updating when courses change. To add another major, add a new
 entry to `MAJORS` and a matching `<option>` to the `#majorSel` dropdown.
+
+Right-click popup content comes from two places:
+
+- **`COURSE_INFO`** — catalog details keyed by course code (shared across
+  majors), each entry `{title, credits, description, requirements}`, sourced
+  from the Pitt Acalog catalog (catalog.upp.pitt.edu).
+- **`MAJORS.<major>.INFO`** — per-major overrides keyed by node id, used for
+  choice/group nodes (electives, capstone, writing, sustainability). An
+  `INFO` entry wins over `COURSE_INFO` when both exist.
 
 ### Data sources for curriculum updates
 
